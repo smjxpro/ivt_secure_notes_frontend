@@ -24,6 +24,8 @@ export function DataTable<T extends { _id: string }>({
     onPageChange,
     isLoading,
 }: DataTableProps<T>) {
+    const maxPages = Math.max(1, Number(pagination.totalPages ?? pagination.pages) || 1);
+
     return (
         <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#fff' }}>
             <div style={{ overflowX: 'auto' }}>
@@ -114,21 +116,21 @@ export function DataTable<T extends { _id: string }>({
                         <ChevronLeft size={16} /> Prev
                     </button>
                     <span>
-                        Page {pagination.page} of {Math.max(1, pagination.pages)}
+                        Page {pagination.page} of {maxPages}
                     </span>
                     <button
-                        disabled={pagination.page >= pagination.pages || isLoading}
+                        disabled={pagination.page >= maxPages || isLoading}
                         onClick={() => onPageChange(pagination.page + 1)}
                         style={{
                             padding: '6px 12px',
                             border: '1px solid #cbd5e1',
                             borderRadius: '6px',
                             backgroundColor: '#fff',
-                            cursor: pagination.page >= pagination.pages ? 'not-allowed' : 'pointer',
+                            cursor: pagination.page >= maxPages ? 'not-allowed' : 'pointer',
                             display: 'flex',
                             alignItems: 'center',
                             gap: '4px',
-                            opacity: pagination.page >= pagination.pages ? 0.5 : 1,
+                            opacity: pagination.page >= maxPages ? 0.5 : 1,
                         }}
                     >
                         Next <ChevronRight size={16} />

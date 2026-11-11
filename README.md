@@ -35,8 +35,14 @@ proxy: {
 ## Features
 - **User Authentication**: Register and Login with JWT token storage.
 - **Auto Session Restoration**: Loads profile on initial load using saved token; logs out cleanly if token is invalid.
-- **Notes Management**: Create, list (with pagination), and delete notes.
-- **Admin Panel**: Role-based access displaying system users for admin accounts.
+- **Notes Management**: Create, list (with pagination), edit, and delete notes.
+- **Admin Panel**: Role-based access displaying, adding, editing, and deleting system users.
+
+## Routing Structure
+- `/login`: Public authentication page (sign in and sign up).
+- `/notes`: Authenticated notes dashboard wrapped by [`PageLayout`](file:///Users/smjxpro/RND/ivt_%20careguidebd/frontend/src/components/PageLayout.tsx).
+- `/aggregations`: Analytics and aggregations view.
+- `/admin/users`: Admin-only user management protected by [`AdminRoute`](file:///Users/smjxpro/RND/ivt_%20careguidebd/frontend/src/components/RouteGuards.tsx).
 
 ## Build
 ```bash

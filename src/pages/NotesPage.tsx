@@ -3,7 +3,7 @@ import type { Note, PaginatedResponse } from '../types';
 import { request } from '../api';
 import { DataTable, type Column } from '../components/DataTable';
 import { useAuth } from '../context/AuthContext';
-import { Trash2, Plus, RefreshCw } from 'lucide-react';
+import { Trash2, Plus, RefreshCw, Pencil } from 'lucide-react';
 
 export const NotesPage: React.FC = () => {
     const { user } = useAuth();
@@ -11,8 +11,9 @@ export const NotesPage: React.FC = () => {
     const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1, limit: 10 });
     const [loading, setLoading] = useState(false);
 
-    // Form State
+    // Form & Edit State
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingNote, setEditingNote] = useState<Note | null>(null);
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [formError, setFormError] = useState('');
@@ -34,18 +35,42 @@ export const NotesPage: React.FC = () => {
         fetchNotes(1);
     }, []);
 
-    const handleCreate = async (e: React.FormEvent) => {
+    const openCreateModal = () => {
+        setEditingNote(null);
+        setTitle('');
+        setContent('');
+        setFormError('');
+        setIsModalOpen(true);
+    };
+
+    const openEditModal = (note: Note) => {
+        setEditingNote(note);
+        setTitle(note.title);
+        setContent(note.content);
+        setFormError('');
+        setIsModalOpen(true);
+    };
+
+    const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormError('');
         try {
-            await request('/notes', {
-                method: 'POST',
-                body: JSON.stringify({ title, content }),
-            });
+            if (editingNote) {
+                await request(`/notes/${editingNote._id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ title, content }),
+                });
+            } else {
+                await request('/notes', {
+                    method: 'POST',
+                    body: JSON.stringify({ title, content }),
+                });
+            }
             setTitle('');
             setContent('');
+            setEditingNote(null);
             setIsModalOpen(false);
-            fetchNotes(1);
+            fetchNotes(pagination.page);
         } catch (err: any) {
             setFormError(err.message || 'Failed to save note');
         }
@@ -65,9 +90,28 @@ export const NotesPage: React.FC = () => {
         {
             header: 'Title',
             accessor: 'title',
-            width: '25%',
+            width: user?.role === 'admin' ? '20%' : '25%',
             render: (note) => <span style={{ fontWeight: 600 }}>{note.title}</span>,
         },
+        ...(user?.role === 'admin'
+            ? [
+                  {
+                      header: 'Author',
+                      width: '180px',
+                      render: (note: Note) => {
+                          const author = typeof note.userId === 'object' && note.userId !== null ? note.userId : null;
+                          return author ? (
+                              <div>
+                                  <div style={{ fontWeight: 500, color: '#1e293b' }}>{author.name}</div>
+                                  <div style={{ fontSize: '12px', color: '#64748b' }}>{author.email}</div>
+                              </div>
+                          ) : (
+                              <span style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: '13px' }}>Unknown / Deleted</span>
+                          );
+                      },
+                  },
+              ]
+            : []),
         {
             header: 'Content',
             accessor: 'content',
@@ -91,20 +135,40 @@ export const NotesPage: React.FC = () => {
             header: 'Actions',
             width: '100px',
             render: (note) => (
-                <button
-                    onClick={() => handleDelete(note._id)}
-                    title="Delete Note"
-                    style={{
-                        background: 'none',
-                        border: 'none',
-                        color: '#ef4444',
-                        cursor: 'pointer',
-                        padding: '4px',
-                        borderRadius: '4px',
-                    }}
-                >
-                    <Trash2 size={18} />
-                </button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                        onClick={() => openEditModal(note)}
+                        title="Edit Note"
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#2563eb',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
+                    >
+                        <Pencil size={18} />
+                    </button>
+                    <button
+                        onClick={() => handleDelete(note._id)}
+                        title="Delete Note"
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                        }}
+                    >
+                        <Trash2 size={18} />
+                    </button>
+                </div>
             ),
         },
     ];
@@ -137,7 +201,7 @@ export const NotesPage: React.FC = () => {
                         <RefreshCw size={16} /> Refresh
                     </button>
                     <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={openCreateModal}
                         style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -164,7 +228,7 @@ export const NotesPage: React.FC = () => {
                 isLoading={loading}
             />
 
-            {/* Modal for New Note */}
+            {/* Modal for Note */}
             {isModalOpen && (
                 <div
                     style={{
@@ -178,9 +242,9 @@ export const NotesPage: React.FC = () => {
                     }}
                 >
                     <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', width: '100%', maxWidth: '500px' }}>
-                        <h3 style={{ margin: '0 0 16px 0' }}>Create Note</h3>
+                        <h3 style={{ margin: '0 0 16px 0' }}>{editingNote ? 'Edit Note' : 'Create Note'}</h3>
                         {formError && <p style={{ color: 'red', fontSize: '13px' }}>{formError}</p>}
-                        <form onSubmit={handleCreate}>
+                        <form onSubmit={handleSave}>
                             <div style={{ marginBottom: '12px' }}>
                                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px' }}>Title</label>
                                 <input
@@ -213,7 +277,7 @@ export const NotesPage: React.FC = () => {
                                     type="submit"
                                     style={{ padding: '8px 14px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
                                 >
-                                    Save Note
+                                    {editingNote ? 'Update Note' : 'Save Note'}
                                 </button>
                             </div>
                         </form>

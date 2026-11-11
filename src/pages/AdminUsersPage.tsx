@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import type { User, PaginatedResponse } from '../types';
 import { request } from '../api';
 import { DataTable, type Column } from '../components/DataTable';
-import { Trash2, UserPlus, RefreshCw } from 'lucide-react';
+import { Trash2, UserPlus, RefreshCw, Pencil } from 'lucide-react';
 
 export const AdminUsersPage: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1, limit: 10 });
     const [loading, setLoading] = useState(false);
 
-    // New user form modal
+    // User form modal & edit state
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -35,27 +36,67 @@ export const AdminUsersPage: React.FC = () => {
         fetchUsers(1);
     }, []);
 
-    const handleCreateUser = async (e: React.FormEvent) => {
+    const openAddUserModal = () => {
+        setEditingUser(null);
+        setName('');
+        setEmail('');
+        setPassword('');
+        setRole('user');
+        setInterests('');
+        setError('');
+        setIsModalOpen(true);
+    };
+
+    const openEditUserModal = (u: User) => {
+        setEditingUser(u);
+        setName(u.name);
+        setEmail(u.email);
+        setPassword('');
+        setRole(u.role);
+        setInterests((u.interests || []).join(', '));
+        setError('');
+        setIsModalOpen(true);
+    };
+
+    const handleSaveUser = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         try {
-            await request('/admin/users', {
-                method: 'POST',
-                body: JSON.stringify({
-                    name,
-                    email,
-                    password,
-                    role,
-                    interests: interests.split(',').map((s) => s.trim()).filter(Boolean),
-                }),
-            });
+            const body: any = {
+                name,
+                email,
+                role,
+                interests: interests.split(',').map((s) => s.trim()).filter(Boolean),
+            };
+
+            if (password.trim().length > 0) {
+                body.password = password.trim();
+            }
+
+            if (editingUser) {
+                await request(`/admin/users/${editingUser._id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(body),
+                });
+            } else {
+                if (!password) {
+                    setError('Password is required for a new user');
+                    return;
+                }
+                body.password = password;
+                await request('/admin/users', {
+                    method: 'POST',
+                    body: JSON.stringify(body),
+                });
+            }
             setName('');
             setEmail('');
             setPassword('');
+            setEditingUser(null);
             setIsModalOpen(false);
-            fetchUsers(1);
+            fetchUsers(pagination.page);
         } catch (err: any) {
-            setError(err.message || 'Failed to create user');
+            setError(err.message || (editingUser ? 'Failed to update user' : 'Failed to create user'));
         }
     };
 
@@ -81,27 +122,32 @@ export const AdminUsersPage: React.FC = () => {
         },
         {
             header: 'Role',
-            render: (u) => (
-                <span
-                    style={{
-                        padding: '4px 8px',
-                        borderRadius: '9999px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        backgroundColor: u.role === 'admin' ? '#fef3c7' : '#e0e7ff',
-                        color: u.role === 'admin' ? '#92400e' : '#3730a3',
-                    }}
-                >
-                    {u.role.toUpperCase()}
-                </span>
-            ),
+            accessor: 'role',
+            render: (u) => {
+                const isAdmin = u.role === 'admin';
+                return (
+                    <span
+                        style={{
+                            padding: '2px 8px',
+                            borderRadius: '9999px',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            textTransform: 'uppercase',
+                            backgroundColor: isAdmin ? '#fef3c7' : '#e0e7ff',
+                            color: isAdmin ? '#d97706' : '#4338ca',
+                        }}
+                    >
+                        {u.role}
+                    </span>
+                );
+            },
         },
         {
             header: 'Interests',
             render: (u) => (
                 <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
                     {(u.interests || []).map((interest, idx) => (
-                        <span key={idx} style={{ background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px', fontSize: '12px' }}>
+                        <span key={idx} style={{ backgroundColor: '#f1f5f9', color: '#475569', fontSize: '12px', padding: '1px 6px', borderRadius: '4px' }}>
                             {interest}
                         </span>
                     ))}
@@ -118,15 +164,24 @@ export const AdminUsersPage: React.FC = () => {
         },
         {
             header: 'Actions',
-            width: '80px',
+            width: '100px',
             render: (u) => (
-                <button
-                    onClick={() => handleDeleteUser(u._id)}
-                    title="Delete User"
-                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
-                >
-                    <Trash2 size={18} />
-                </button>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button
+                        onClick={() => openEditUserModal(u)}
+                        title="Edit User"
+                        style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                    >
+                        <Pencil size={18} />
+                    </button>
+                    <button
+                        onClick={() => handleDeleteUser(u._id)}
+                        title="Delete User"
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                    >
+                        <Trash2 size={18} />
+                    </button>
+                </div>
             ),
         },
     ];
@@ -137,7 +192,7 @@ export const AdminUsersPage: React.FC = () => {
                 <div>
                     <h1 style={{ margin: '0 0 4px 0', fontSize: '24px', color: '#0f172a' }}>Admin User Directory</h1>
                     <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
-                        List, add, and remove system users with MongoDB index-backed pagination.
+                        List, add, edit, and remove system users with MongoDB index-backed pagination.
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
@@ -148,7 +203,7 @@ export const AdminUsersPage: React.FC = () => {
                         <RefreshCw size={16} /> Refresh
                     </button>
                     <button
-                        onClick={() => setIsModalOpen(true)}
+                        onClick={openAddUserModal}
                         style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 500 }}
                     >
                         <UserPlus size={16} /> Add User
@@ -164,13 +219,13 @@ export const AdminUsersPage: React.FC = () => {
                 isLoading={loading}
             />
 
-            {/* Modal for Creating User */}
+            {/* Modal for User Create/Edit */}
             {isModalOpen && (
                 <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
                     <div style={{ backgroundColor: '#fff', padding: '24px', borderRadius: '8px', width: '100%', maxWidth: '450px' }}>
-                        <h3 style={{ margin: '0 0 16px 0' }}>Add New User</h3>
+                        <h3 style={{ margin: '0 0 16px 0' }}>{editingUser ? 'Edit User' : 'Add New User'}</h3>
                         {error && <p style={{ color: 'red', fontSize: '13px' }}>{error}</p>}
-                        <form onSubmit={handleCreateUser}>
+                        <form onSubmit={handleSaveUser}>
                             <div style={{ marginBottom: '10px' }}>
                                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px' }}>Name</label>
                                 <input required type="text" value={name} onChange={(e) => setName(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
@@ -180,8 +235,17 @@ export const AdminUsersPage: React.FC = () => {
                                 <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
                             </div>
                             <div style={{ marginBottom: '10px' }}>
-                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px' }}>Password</label>
-                                <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }} />
+                                <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px' }}>
+                                    Password {editingUser ? '(leave blank to keep current)' : ''}
+                                </label>
+                                <input
+                                    required={!editingUser}
+                                    type="password"
+                                    placeholder={editingUser ? 'Leave blank to preserve password' : ''}
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '6px', boxSizing: 'border-box' }}
+                                />
                             </div>
                             <div style={{ marginBottom: '10px' }}>
                                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, marginBottom: '4px' }}>Role</label>
@@ -196,7 +260,9 @@ export const AdminUsersPage: React.FC = () => {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                                 <button type="button" onClick={() => setIsModalOpen(false)} style={{ padding: '8px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', backgroundColor: '#fff', cursor: 'pointer' }}>Cancel</button>
-                                <button type="submit" style={{ padding: '8px 14px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Add User</button>
+                                <button type="submit" style={{ padding: '8px 14px', backgroundColor: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+                                    {editingUser ? 'Update User' : 'Add User'}
+                                </button>
                             </div>
                         </form>
                     </div>

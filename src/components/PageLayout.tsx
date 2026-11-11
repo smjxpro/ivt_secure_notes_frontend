@@ -3,7 +3,11 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FileText, Users, Layers, LogOut } from 'lucide-react';
 
-export const Layout: React.FC = () => {
+interface PageLayoutProps {
+    children?: React.ReactNode;
+}
+
+export const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
 
@@ -23,24 +27,29 @@ export const Layout: React.FC = () => {
         fontSize: '14px',
         color: isActive ? '#2563eb' : '#64748b',
         backgroundColor: isActive ? '#eff6ff' : 'transparent',
+        whiteSpace: 'nowrap',
     });
 
     return (
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9' }}>
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#f1f5f9', width: '100%' }}>
             <header
                 style={{
                     backgroundColor: '#fff',
                     borderBottom: '1px solid #e2e8f0',
-                    padding: '0 24px',
-                    height: '64px',
+                    padding: '12px 24px',
+                    minHeight: '64px',
                     display: 'flex',
+                    flexWrap: 'wrap',
                     justifyContent: 'space-between',
                     alignItems: 'center',
+                    gap: '16px',
+                    boxSizing: 'border-box',
+                    width: '100%',
                 }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-                    <span style={{ fontWeight: '700', fontSize: '18px', color: '#0f172a' }}>SecureNotes</span>
-                    <nav style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: '700', fontSize: '18px', color: '#0f172a', whiteSpace: 'nowrap' }}>SecureNotes</span>
+                    <nav style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                         <NavLink to="/notes" style={navItemStyle}>
                             <FileText size={18} /> Notes
                         </NavLink>
@@ -55,7 +64,7 @@ export const Layout: React.FC = () => {
                     </nav>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
                     <div style={{ textAlign: 'right', fontSize: '13px' }}>
                         <div style={{ fontWeight: 600, color: '#1e293b' }}>{user?.name}</div>
                         <div style={{ color: '#64748b', textTransform: 'capitalize' }}>{user?.role}</div>
@@ -73,6 +82,7 @@ export const Layout: React.FC = () => {
                             borderRadius: '6px',
                             cursor: 'pointer',
                             fontWeight: 500,
+                            whiteSpace: 'nowrap',
                         }}
                     >
                         <LogOut size={16} /> Logout
@@ -80,8 +90,8 @@ export const Layout: React.FC = () => {
                 </div>
             </header>
 
-            <main style={{ flex: 1, padding: '32px 24px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-                <Outlet />
+            <main style={{ flex: 1, padding: '32px 24px', maxWidth: '1200px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+                {children ?? <Outlet />}
             </main>
         </div>
     );
