@@ -1,18 +1,18 @@
 const BASE_URL = "/api";
 
-export const getAuthToken =(): string | null => localStorage.getItem("token");
+export const getAuthToken = (): string | null => localStorage.getItem("token");
 
 export const setAuthToken = (token: string): void => localStorage.setItem("token", token);
 
 export const removeAuthToken = (): void => localStorage.removeItem("token");
 
-export const apiFetch = async (endpoint: string, options: RequestInit = {}): Promise<unknown> => {
+export async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const token = getAuthToken();
     const headers: HeadersInit = {
         "Content-Type": "application/json",
         ...(options.headers as Record<string, string>),
     };
-    
+
     if (token) {
         headers["Authorization"] = `Bearer ${token}`;
     }
@@ -22,9 +22,11 @@ export const apiFetch = async (endpoint: string, options: RequestInit = {}): Pro
         headers,
     });
 
+    const payload = await response.json().catch(() => ({}));
+
     if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error(payload.message || `Request failed with HTTP status ${response.status}`);
     }
 
-    return await response.json().catch(() => ({}));
-};
+    return payload as T;
+}
