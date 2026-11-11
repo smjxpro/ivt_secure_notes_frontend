@@ -1,4 +1,8 @@
-const BASE_URL = "/api";
+const rawBaseUrl = import.meta.env.VITE_API_URL;
+if (!rawBaseUrl) {
+    throw new Error("VITE_API_URL environment variable is required");
+}
+const BASE_URL = rawBaseUrl.endsWith("/") ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
 
 export const getAuthToken = (): string | null => localStorage.getItem("token");
 
@@ -17,7 +21,8 @@ export async function request<T>(endpoint: string, options: RequestInit = {}): P
         headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${BASE_URL}${endpoint}`, {
+    const normalizedEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+    const response = await fetch(`${BASE_URL}${normalizedEndpoint}`, {
         ...options,
         headers,
     });
